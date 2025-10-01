@@ -1,0 +1,66 @@
+ import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import org.json.JSONObject;
+
+public class RainAlertApp {
+
+    private static final String API_KEY = "87e35bbcf832f11d2c5f5e90bf318527"; // Buraya kendi anahtarını yaz
+    private static final String CITY = "Amsterdam,nl";
+
+    public static void main(String[] args) {
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+        Runnable task = () -> {
+            try {
+                String response = getWeatherData(CITY);
+                if (response != null) {
+                    boolean isRaining = checkForRain(response);
+                    if (isRaining) {
+                        System.out.println("⚠️ ALERT: It's raining! Don't forget your umbrella!");
+                    } else {
+                        System.out.println("✅ No rain right now. Have a great day!");
+                    }
+                }
+            } catch (Exception e) {
+
+
+            }
+        };
+
+        scheduler.scheduleAtFixedRate(task, 0, 15, TimeUnit.MINUTES);
+    }
+
+    private static String getWeatherData(String city) throws Exception {
+        String urlString = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + API_KEY;
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        String inputLine;
+        StringBuilder content = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            content.append(inputLine);
+        }
+
+        in.close();
+        conn.disconnect();
+
+        return content.toString();
+    }
+
+    private static boolean checkForRain(String jsonResponse) {
+        JSONObject obj = new JSONObject(jsonResponse);
+        if (obj.has("weather")) {
+            String weatherMain = obj.getJSONArray("weather").getJSONObject(0).getString("main");
+            return weatherMain.toLowerCase().contains("rain");
+        }
+        return false;
+    }
+}
